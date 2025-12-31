@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced DSA Text Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #151520;
+            --bg-tertiary: #1f1f2e;
+            --text-primary: #e8e9f3;
+            --text-secondary: #9ca3af;
+            --accent: #6366f1;
+            --border: #2d2d44;
+            --success: #10b981;
+            --node-bg: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #8b5cf6 100%);
+            --node-shadow: rgba(99, 102, 241, 0.5);
+        }
+
+        body.light {
+            --bg-primary: #fff7ed;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #ffedd5;
+            --text-primary: #1c1917;
+            --text-secondary: #78716c;
+            --accent: #f97316;
+            --border: #fed7aa;
+            --node-bg: linear-gradient(135deg, #f97316 0%, #ea580c 50%, #fb923c 100%);
+            --node-shadow: rgba(249, 115, 22, 0.4);
+        }
+
+        body.ocean {
+            --bg-primary: #001a2e;
+            --bg-secondary: #002642;
+            --bg-tertiary: #003558;
+            --text-primary: #cffafe;
+            --text-secondary: #67e8f9;
+            --accent: #06b6d4;
+            --border: #0e7490;
+            --node-bg: linear-gradient(135deg, #06b6d4 0%, #0891b2 50%, #22d3ee 100%);
+            --node-shadow: rgba(6, 182, 212, 0.6);
+        }
+
+        body.forest {
+            --bg-primary: #05150a;
+            --bg-secondary: #0f2818;
+            --bg-tertiary: #1a4028;
+            --text-primary: #d1fae5;
+            --text-secondary: #6ee7b7;
+            --accent: #10b981;
+            --border: #047857;
+            --node-bg: linear-gradient(135deg, #10b981 0%, #059669 50%, #34d399 100%);
+            --node-shadow: rgba(16, 185, 129, 0.6);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .toolbar {
+            background: var(--bg-secondary);
+            padding: 16px 28px;
+            border-bottom: 3px solid var(--border);
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .toolbar button, .toolbar select {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 2px solid var(--border);
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+
+        .toolbar button:hover, .toolbar select:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            color: white;
+        }
+
+        .toolbar button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .editor-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+        }
+
+        .editor-header {
+            background: var(--bg-secondary);
+            padding: 12px 24px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .editor-controls button {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .editor-controls button:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .editor-controls button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        #textEditor {
+            flex: 1;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: none;
+            padding: 24px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 15px;
+            resize: none;
+            outline: none;
+            line-height: 1.7;
+        }
+
+        .stats {
+            background: var(--bg-secondary);
+            padding: 12px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .stats strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .visualization-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .viz-header {
+            background: var(--bg-secondary);
+            padding: 12px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .ds-info {
+            background: var(--bg-tertiary);
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .ds-info strong {
+            color: var(--accent);
+        }
+
+        .viz-controls {
+            background: var(--bg-secondary);
+            padding: 12px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .viz-controls input[type="text"] {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 8px 14px;
+            border-radius: 5px;
+            width: 150px;
+            font-size: 14px;
+        }
+
+        .viz-controls select {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 8px 14px;
+            border-radius: 5px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .viz-controls label {
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .viz-controls input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        .viz-controls button {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 2px solid var(--border);
+            padding: 9px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .viz-controls button:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-search {
+            background: #3b82f6 !important;
+            color: white !important;
+        }
+
+        .btn-replace {
+            background: #10b981 !important;
+            color: white !important;
+        }
+
+        #visualizationArea {
+            flex: 1;
+            background: var(--bg-primary);
+            padding: 40px;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            border: 4px dashed var(--border);
+        }
+
+        .empty-state-icon {
+            font-size: 72px;
+            margin-bottom: 24px;
+        }
+
+        .node {
+            background: var(--node-bg);
+            color: white;
+            padding: 20px 32px;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 17px;
+            display: inline-block;
+            margin: 10px;
+            box-shadow: 0 8px 20px var(--node-shadow);
+            animation: nodeAppear 0.6s ease;
+            transition: all 0.4s;
+        }
+
+        .node:hover {
+            transform: translateY(-4px) scale(1.05);
+        }
+
+        .node.highlight {
+            background: linear-gradient(135deg, #10b981 0%, #059669 50%, #34d399 100%);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes nodeAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .stack-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .queue-container, .linked-list {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .ds-label {
+            color: var(--accent);
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .arrow {
+            color: var(--accent);
+            font-size: 32px;
+        }
+
+        .tree-container {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        .tree-level {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .pagination {
+            background: var(--bg-secondary);
+            padding: 12px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .pagination button {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 2px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: var(--accent);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .history-panel {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 16px 24px;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+
+        .history-title {
+            font-size: 12px;
+            color: var(--accent);
+            margin-bottom: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .history-item {
+            background: var(--bg-tertiary);
+            padding: 10px 16px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            border-left: 3px solid var(--accent);
+        }
+
+        .history-term {
+            color: var(--accent);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="dark">
+    <div class="container">
+        <div class="toolbar">
+            <select id="themeSelect">
+                <option value="dark">Dark Theme</option>
+                <option value="light">Light Theme</option>
+                <option value="ocean">Ocean Theme</option>
+                <option value="forest">Forest Theme</option>
+            </select>
+            <select id="dsType">
+                <option value="stack">Stack</option>
+                <option value="queue">Queue</option>
+                <option value="linkedlist">Linked List</option>
+                <option value="tree">Binary Tree</option>
+            </select>
+            <button onclick="clearEditor()">
+                <i class="fas fa-trash"></i> Clear Editor
+            </button>
+            <button onclick="clearVisualization()">Clear Visualization</button>
+        </div>
+
+        <div class="main-content">
+            <div class="editor-section">
+                <div class="editor-header">
+                    <span>Text Editor with Undo/Redo</span>
+                    <div class="editor-controls">
+                        <button id="undoBtn" onclick="undo()" disabled>
+                            <i class="fas fa-undo"></i> Undo
+                        </button>
+                        <button id="redoBtn" onclick="redo()" disabled>
+                            <i class="fas fa-redo"></i> Redo
+                        </button>
+                    </div>
+                </div>
+                <textarea id="textEditor" placeholder="Type text here... No word limit! Paste large paragraphs."></textarea>
+                <div class="stats">
+                    <span>Words: <strong id="wordCount">0</strong></span>
+                    <span>Characters: <strong id="charCount">0</strong></span>
+                    <span>Lines: <strong id="lineCount">0</strong></span>
+                    <span>Undo: <strong id="undoCount">1</strong></span>
+                </div>
+            </div>
+
+            <div class="visualization-section">
+                <div class="viz-header">
+                    <span id="vizTitle">Stack Visualization (LIFO)</span>
+                </div>
+                <div class="ds-info" id="dsInfo">
+                    <strong>Stack (LIFO)</strong> - Used for Undo/Redo functionality.
+                </div>
+                <div class="viz-controls">
+                    <label>
+                        <input type="checkbox" id="autoSync" checked> Auto-sync
+                    </label>
+                    <button onclick="syncFromEditor()">
+                        <i class="fas fa-sync"></i> Sync
+                    </button>
+                    <input type="text" id="searchInput" placeholder="Search..." onkeypress="if(event.key==='Enter') searchElement()">
+                    <input type="text" id="replaceInput" placeholder="Replace with..." onkeypress="if(event.key==='Enter') replaceElement()">
+                    <select id="replaceMode">
+                        <option value="all">Replace All</option>
+                        <option value="highlighted">Replace Highlighted</option>
+                    </select>
+                    <button class="btn-search" onclick="searchElement()">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <button class="btn-replace" onclick="replaceElement()">Replace</button>
+                </div>
+                <div id="visualizationArea">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        Type text in the editor!<br><strong>No word limit!</strong>
+                    </div>
+                </div>
+                <div class="pagination" id="pagination" style="display: none;">
+                    <button onclick="previousPage()" id="prevBtn">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button onclick="nextPage()" id="nextBtn">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="history-panel">
+                    <div class="history-title">Search History (Max 5)</div>
+                    <div id="searchHistory">
+                        <div style="color: var(--text-secondary);">No searches yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dataStructure = [];
+        let currentDS = 'stack';
+        let undoStack = [''];
+        let redoStack = [];
+        let isUndoRedo = false;
+        let searchHistory = [];
+        let highlightIndices = [];
+        const ITEMS_PER_PAGE = 50;
+        let currentPage = 0;
+
+        const editor = document.getElementById('textEditor');
+        const autoSync = document.getElementById('autoSync');
+
+        const dsDescriptions = {
+            stack: {
+                title: 'Stack Visualization (LIFO)',
+                description: '<strong>Stack (LIFO)</strong> - Used for Undo/Redo functionality.'
+            },
+            queue: {
+                title: 'Queue Visualization (FIFO)',
+                description: '<strong>Queue (FIFO)</strong> - Used for Search History.'
+            },
+            linkedlist: {
+                title: 'Linked List Visualization',
+                description: '<strong>Linked List</strong> - Linear structure with linked nodes.'
+            },
+            tree: {
+                title: 'Binary Tree Visualization',
+                description: '<strong>Binary Tree</strong> - Hierarchical structure.'
+            }
+        };
+
+        updateDSInfo();
+
+        document.getElementById('themeSelect').addEventListener('change', (e) => {
+            document.body.className = e.target.value;
+        });
+
+        document.getElementById('dsType').addEventListener('change', (e) => {
+            currentDS = e.target.value;
+            currentPage = 0;
+            updateDSInfo();
+            if (autoSync.checked) syncFromEditor();
+            else visualize();
+        });
+
+        function updateDSInfo() {
+            const info = dsDescriptions[currentDS];
+            document.getElementById('vizTitle').textContent = info.title;
+            document.getElementById('dsInfo').innerHTML = info.description;
+        }
+
+        editor.addEventListener('input', () => {
+            const text = editor.value;
+            document.getElementById('charCount').textContent = text.length;
+            document.getElementById('wordCount').textContent = text.trim() ? text.trim().split(/\s+/).length : 0;
+            document.getElementById('lineCount').textContent = text.split('\n').length;
+            
+            if (!isUndoRedo) {
+                undoStack.push(text);
+                redoStack = [];
+                if (undoStack.length > 50) undoStack.shift();
+            }
+            
+            updateUndoRedoButtons();
+            if (autoSync.checked) syncFromEditor();
+        });
+
+        function undo() {
+            if (undoStack.length <= 1) return;
+            isUndoRedo = true;
+            redoStack.push(undoStack.pop());
+            editor.value = undoStack[undoStack.length - 1] || '';
+            updateStats();
+            isUndoRedo = false;
+            updateUndoRedoButtons();
+            if (autoSync.checked) syncFromEditor();
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            isUndoRedo = true;
+            const next = redoStack.pop();
+            undoStack.push(next);
+            editor.value = next;
+            updateStats();
+            isUndoRedo = false;
+            updateUndoRedoButtons();
+            if (autoSync.checked) syncFromEditor();
+        }
+
+        function updateStats() {
+            const text = editor.value;
+            document.getElementById('charCount').textContent = text.length;
+            document.getElementById('wordCount').textContent = text.trim() ? text.trim().split(/\s+/).length : 0;
+            document.getElementById('lineCount').textContent = text.split('\n').length;
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('undoBtn').disabled = undoStack.length <= 1;
+            document.getElementById('redoBtn').disabled = redoStack.length === 0;
+            document.getElementById('undoCount').textContent = undoStack.length;
+        }
+
+        function clearEditor() {
+            editor.value = '';
+            undoStack = [''];
+            redoStack = [];
+            updateStats();
+            updateUndoRedoButtons();
+            if (autoSync.checked) syncFromEditor();
+        }
+
+        function clearVisualization() {
+            dataStructure = [];
+            highlightIndices = [];
+            currentPage = 0;
+            visualize();
+        }
+
+        function syncFromEditor() {
+            const text = editor.value.trim();
+            dataStructure = text ? text.split(/\s+/).filter(w => w.length > 0) : [];
+            currentPage = 0;
+            highlightIndices = [];
+            visualize();
+        }
+
+        function searchElement() {
+            const term = document.getElementById('searchInput').value.trim();
+            if (!term) return;
+            
+            highlightIndices = [];
+            dataStructure.forEach((item, i) => {
+                if (item.toLowerCase().includes(term.toLowerCase())) {
+                    highlightIndices.push(i);
+                }
+            });
+            
+            addToSearchHistory(term, highlightIndices.length);
+            
+            if (highlightIndices.length > 0) {
+                currentPage = Math.floor(highlightIndices[0] / ITEMS_PER_PAGE);
+                alert(`Found "${term}" at ${highlightIndices.length} position(s)`);
+            } else {
+                alert(`"${term}" not found`);
+            }
+            visualize();
+        }
+
+        function replaceElement() {
+            const term = document.getElementById('searchInput').value.trim();
+            const replace = document.getElementById('replaceInput').value.trim();
+            const mode = document.getElementById('replaceMode').value;
+            
+            if (!term) {
+                alert('Enter a search term');
+                return;
+            }
+
+            let count = 0;
+            const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+
+            if (mode === 'all') {
+                const matches = editor.value.match(regex);
+                count = matches ? matches.length : 0;
+                editor.value = editor.value.replace(regex, replace);
+            } else {
+                if (highlightIndices.length === 0) {
+                    alert('Search first to highlight items');
+                    return;
+                }
+                const words = editor.value.trim().split(/\s+/);
+                highlightIndices.forEach(i => {
+                    if (i < words.length) {
+                        words[i] = words[i].replace(regex, replace);
+                        count++;
+                    }
+                });
+                editor.value = words.join(' ');
+            }
+
+            if (count > 0) {
+                undoStack.push(editor.value);
+                redoStack = [];
+                updateStats();
+                updateUndoRedoButtons();
+                highlightIndices = [];
+                if (autoSync.checked) syncFromEditor();
+                alert(`Replaced ${count} occurrence(s)`);
+            } else {
+                alert('Nothing to replace');
+            }
+        }
+
+        function addToSearchHistory(term, result) {
+            searchHistory.push({
+                term,
+                result,
+                time: new Date().toLocaleTimeString()
+            });
+            if (searchHistory.length > 5) searchHistory.shift();
+            displaySearchHistory();
+        }
+
+        function displaySearchHistory() {
+            const div = document.getElementById('searchHistory');
+            if (searchHistory.length === 0) {
+                div.innerHTML = '<div style="color: var(--text-secondary);">No searches yet</div>';
+                return;
+            }
+            div.innerHTML = searchHistory.map(h => `
+                <div class="history-item">
+                    <span class="history-term">"${h.term}"</span>
+                    <span>${h.result} found • ${h.time}</span>
+                </div>
+            `).join('');
+        }
+
+        function previousPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                visualize();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(dataStructure.length / ITEMS_PER_PAGE);
+            if (currentPage < totalPages - 1) {
+                currentPage++;
+                visualize();
+            }
+        }
+
+        function visualize() {
+            const area = document.getElementById('visualizationArea');
+            
+            if (dataStructure.length === 0) {
+                area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📝</div>Type text!<br><strong>No limit!</strong></div>';
+                document.getElementById('pagination').style.display = 'none';
+                return;
+            }
+
+            const totalPages = Math.ceil(dataStructure.length / ITEMS_PER_PAGE);
+            const start = currentPage * ITEMS_PER_PAGE;
+            const end = Math.min(start + ITEMS_PER_PAGE, dataStructure.length);
+            const data = dataStructure.slice(start, end);
+            const highlights = highlightIndices.map(i => i - start).filter(i => i >= 0 && i < data.length);
+
+            if (totalPages > 1) {
+                document.getElementById('pagination').style.display = 'flex';
+                document.getElementById('pageInfo').textContent = 
+                    `Page ${currentPage + 1} of ${totalPages} (${data.length}/${dataStructure.length})`;
+                document.getElementById('prevBtn').disabled = currentPage === 0;
+                document.getElementById('nextBtn').disabled = currentPage === totalPages - 1;
+            } else {
+                document.getElementById('pagination').style.display = 'none';
+            }
+
+            switch(currentDS) {
+                case 'stack':
+                    area.innerHTML = '<div class="stack-container">' +
+                        '<div class="ds-label">↓ TOP</div>' +
+                        data.slice().reverse().map((item, i) => 
+                            `<div class="node ${highlights.includes(data.length - 1 - i) ? 'highlight' : ''}">${item}</div>`
+                        ).join('') +
+                        '<div class="ds-label">↑ BOTTOM</div></div>';
+                    break;
+                case 'queue':
+                    area.innerHTML = '<div class="queue-container">' +
+                        '<div class="ds-label">FRONT →</div>' +
+                        data.map((item, i) => 
+                            `<div class="node ${highlights.includes(i) ? 'highlight' : ''}">${item}</div>` +
+                            (i < data.length - 1 ? '<div class="arrow">→</div>' : '')
+                        ).join('') +
+                        '<div class="ds-label">← REAR</div></div>';
+                    break;
+                case 'linkedlist':
+                    area.innerHTML = '<div class="linked-list">' +
+                        '<div class="ds-label">HEAD →</div>' +
+                        data.map((item, i) => 
+                            `<div class="node ${highlights.includes(i) ? 'highlight' : ''}">${item}</div>` +
+                            (i < data.length - 1 ? '<div class="arrow">→</div>' : '')
+                        ).join('') +
+                        '<div class="ds-label">NULL</div></div>';
+                    break;
+                case 'tree':
+                    const levels = Math.ceil(Math.log2(data.length + 1));
+                    let html = '<div class="tree-container">';
+                    let idx = 0;
+                    for (let l = 0; l < levels && idx < data.length; l++) {
+                        html += '<div class="tree-level">';
+                        const nodes = Math.min(Math.pow(2, l), data.length - idx);
+                        for (let i = 0; i < nodes; i++) {
+                            html += `<div class="node ${highlights.includes(idx) ? 'highlight' : ''}">${data[idx]}</div>`;
+                            idx++;
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                    area.innerHTML = html;
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>
