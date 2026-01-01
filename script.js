@@ -3,6 +3,9 @@ let currentDS = 'stack';
 let undoStack = [''];
 let redoStack = [];
 let isUndoRedo = false;
+let currentFindIndex = -1;
+let findMatches = [];
+let findReplaceActive = false;
 
 const editor = document.getElementById('textEditor');
 const autoSync = document.getElementById('autoSync');
@@ -46,6 +49,11 @@ editor.addEventListener('input', () => {
     
     if (autoSync.checked) {
         syncFromEditor();
+    }
+    
+    // Update find matches if find is active
+    if (findReplaceActive) {
+        updateFindMatches();
     }
 });
 
@@ -96,10 +104,10 @@ function syncFromEditor() {
 function updateDSInfo() {
     const info = document.getElementById('dsInfo');
     const descriptions = {
-        stack: '<i class="fas fa-layer-group"></i> <strong>Stack (LIFO)</strong> - Last In, First Out. Items are added and removed from the top.',
-        queue: '<i class="fas fa-arrow-right"></i> <strong>Queue (FIFO)</strong> - First In, First Out. Items are added at the rear and removed from the front.',
-        linkedlist: '<i class="fas fa-link"></i> <strong>Linked List</strong> - A linear collection where each element points to the next.',
-        tree: '<i class="fas fa-sitemap"></i> <strong>Binary Tree</strong> - A hierarchical structure where each node has at most two children.'
+        stack: '<i class="fas fa-layer-group"></i> <strong>Stack (LIFO)</strong> - Last In, First Out. Items are added and removed from the top.<br><span class="usage-hint">💡 Text Editor Usage: Undo/Redo operations use stacks to track edit history!</span>',
+        queue: '<i class="fas fa-arrow-right"></i> <strong>Queue (FIFO)</strong> - First In, First Out. Items are added at the rear and removed from the front.<br><span class="usage-hint">💡 Text Editor Usage: Print queue and auto-save operations process changes in order!</span>',
+        linkedlist: '<i class="fas fa-link"></i> <strong>Linked List</strong> - A linear collection where each element points to the next.<br><span class="usage-hint">💡 Text Editor Usage: Text buffers often use linked lists for efficient insertion/deletion of characters!</span>',
+        tree: '<i class="fas fa-sitemap"></i> <strong>Binary Tree</strong> - A hierarchical structure where each node has at most two children.<br><span class="usage-hint">💡 Text Editor Usage: Syntax trees and document outlines use tree structures for hierarchical organization!</span>'
     };
     info.innerHTML = descriptions[currentDS];
 }
@@ -126,7 +134,7 @@ function visualize() {
             html = '<div class="stack-container">';
             html += '<div class="ds-label">⬆️ TOP</div>';
             for (let i = dataStructure.length - 1; i >= 0; i--) {
-                html += `<div class="node" style="animation-delay: ${(dataStructure.length - 1 - i) * 0.1}s">${dataStructure[i]}</div>`;
+                html += `<div class="node" data-word="${dataStructure[i]}" style="animation-delay: ${(dataStructure.length - 1 - i) * 0.1}s">${dataStructure[i]}</div>`;
             }
             html += '<div class="ds-label">⬇️ BOTTOM</div>';
             html += '</div>';
@@ -136,7 +144,7 @@ function visualize() {
             html = '<div class="queue-container">';
             html += '<div class="ds-label">⬅️ FRONT</div>';
             dataStructure.forEach((item, i) => {
-                html += `<div class="node" style="animation-delay: ${i * 0.1}s">${item}</div>`;
+                html += `<div class="node" data-word="${item}" style="animation-delay: ${i * 0.1}s">${item}</div>`;
                 if (i < dataStructure.length - 1) {
                     html += '<div class="arrow">→</div>';
                 }
@@ -149,7 +157,7 @@ function visualize() {
             html = '<div class="linkedlist-container">';
             html += '<div class="ds-label">🔗 HEAD</div>';
             dataStructure.forEach((item, i) => {
-                html += `<div class="node" style="animation-delay: ${i * 0.1}s">${item}</div>`;
+                html += `<div class="node" data-word="${item}" style="animation-delay: ${i * 0.1}s">${item}</div>`;
                 if (i < dataStructure.length - 1) {
                     html += '<i class="fas fa-arrow-right arrow" style="animation-delay: ${i * 0.1}s"></i>';
                 }
@@ -200,7 +208,7 @@ function visualizeTree() {
     // Draw nodes
     dataStructure.forEach((item, i) => {
         const pos = getNodePosition(i, levels, width);
-        html += `<div class="tree-node" style="left: ${pos.x - 37.5}px; top: ${pos.y - 37.5}px; animation-delay: ${i * 0.15}s">${item}</div>`;
+        html += `<div class="tree-node" data-word="${item}" style="left: ${pos.x - 37.5}px; top: ${pos.y - 37.5}px; animation-delay: ${i * 0.15}s">${item}</div>`;
     });
     
     html += '</div>';
@@ -220,17 +228,19 @@ function getNodePosition(index, levels, width) {
     return { x, y };
 }
 
-// Search Element
+// Search Element - Fixed to work with both .node and .tree-node
 function searchElement() {
     const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
     if (!searchTerm) return;
     
-    const nodes = document.querySelectorAll('.node');
+    // Search both regular nodes and tree nodes
+    const nodes = document.querySelectorAll('.node, .tree-node');
     let found = false;
     
     nodes.forEach(node => {
         node.classList.remove('highlight');
-        if (node.textContent.toLowerCase() === searchTerm) {
+        const nodeText = node.textContent.trim().toLowerCase();
+        if (nodeText === searchTerm) {
             node.classList.add('highlight');
             node.scrollIntoView({ behavior: 'smooth', block: 'center' });
             found = true;
@@ -242,6 +252,249 @@ function searchElement() {
     }
 }
 
+// Find and Replace Functions
+function toggleFindReplace() {
+    const panel = document.getElementById('findReplacePanel');
+    findReplaceActive = !findReplaceActive;
+    
+    if (findReplaceActive) {
+        panel.classList.add('active');
+        document.getElementById('findInput').focus();
+        updateFindMatches();
+    } else {
+        panel.classList.remove('active');
+        clearHighlights();
+    }
+}
+
+function updateFindMatches() {
+    const findText = document.getElementById('findInput').value.trim();
+    const info = document.getElementById('findReplaceInfo');
+    
+    if (!findText) {
+        findMatches = [];
+        currentFindIndex = -1;
+        info.textContent = '';
+        clearHighlights();
+        return;
+    }
+    
+    const text = editor.value;
+    const regex = new RegExp(escapeRegex(findText), 'gi');
+    findMatches = [];
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+        findMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            text: match[0]
+        });
+    }
+    
+    if (findMatches.length > 0) {
+        info.textContent = `${findMatches.length} match${findMatches.length > 1 ? 'es' : ''} found`;
+        highlightMatches();
+        currentFindIndex = 0;
+        scrollToMatch(0);
+    } else {
+        info.textContent = 'No matches found';
+        currentFindIndex = -1;
+    }
+}
+
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightMatches() {
+    const findText = document.getElementById('findInput').value.trim();
+    if (!findText) return;
+    
+    const text = editor.value;
+    const regex = new RegExp(escapeRegex(findText), 'gi');
+    let highlightedText = text;
+    let offset = 0;
+    
+    findMatches.forEach((match, index) => {
+        const before = highlightedText.substring(0, match.start + offset);
+        const matchText = highlightedText.substring(match.start + offset, match.end + offset);
+        const after = highlightedText.substring(match.end + offset);
+        
+        const className = index === currentFindIndex ? 'find-highlight current' : 'find-highlight';
+        highlightedText = before + `<mark class="${className}">${matchText}</mark>` + after;
+        offset += `<mark class="${className}">${matchText}</mark>`.length - matchText.length;
+    });
+    
+    // We can't directly set HTML in textarea, so we'll use a different approach
+    // Instead, we'll highlight in the visualization
+    highlightInVisualization(findText);
+}
+
+function highlightInVisualization(searchText) {
+    const nodes = document.querySelectorAll('.node, .tree-node');
+    nodes.forEach(node => {
+        const nodeText = node.textContent.trim().toLowerCase();
+        if (nodeText === searchText.toLowerCase()) {
+            node.classList.add('find-highlight-viz');
+        } else {
+            node.classList.remove('find-highlight-viz');
+        }
+    });
+}
+
+function clearHighlights() {
+    const nodes = document.querySelectorAll('.node, .tree-node');
+    nodes.forEach(node => {
+        node.classList.remove('find-highlight-viz');
+    });
+    document.getElementById('findReplaceInfo').textContent = '';
+}
+
+function scrollToMatch(index) {
+    if (index < 0 || index >= findMatches.length) return;
+    
+    const match = findMatches[index];
+    editor.focus();
+    editor.setSelectionRange(match.start, match.end);
+    
+    // Scroll editor to show the match
+    const textBeforeMatch = editor.value.substring(0, match.start);
+    const lines = textBeforeMatch.split('\n');
+    const lineNumber = lines.length - 1;
+    const lineHeight = 24; // Approximate line height
+    editor.scrollTop = lineNumber * lineHeight;
+}
+
+function handleFindKeyup(event) {
+    if (event.key === 'Enter') {
+        if (event.shiftKey) {
+            findPrevious();
+        } else {
+            findNext();
+        }
+    } else {
+        updateFindMatches();
+    }
+}
+
+function findNext() {
+    if (findMatches.length === 0) {
+        updateFindMatches();
+        return;
+    }
+    currentFindIndex = (currentFindIndex + 1) % findMatches.length;
+    scrollToMatch(currentFindIndex);
+    highlightInVisualization(document.getElementById('findInput').value.trim());
+}
+
+function findPrevious() {
+    if (findMatches.length === 0) {
+        updateFindMatches();
+        return;
+    }
+    currentFindIndex = (currentFindIndex - 1 + findMatches.length) % findMatches.length;
+    scrollToMatch(currentFindIndex);
+    highlightInVisualization(document.getElementById('findInput').value.trim());
+}
+
+function replaceCurrent() {
+    if (currentFindIndex < 0 || currentFindIndex >= findMatches.length) {
+        alert('No match selected. Use Find Next/Previous first.');
+        return;
+    }
+    
+    const replaceText = document.getElementById('replaceInput').value;
+    const match = findMatches[currentFindIndex];
+    
+    const text = editor.value;
+    const newText = text.substring(0, match.start) + replaceText + text.substring(match.end);
+    editor.value = newText;
+    
+    // Trigger input event to update everything
+    editor.dispatchEvent(new Event('input'));
+    
+    // Animate removal in visualization
+    animateReplaceInVisualization(match.text, replaceText);
+    
+    // Update matches
+    updateFindMatches();
+}
+
+function replaceAll() {
+    const findText = document.getElementById('findInput').value.trim();
+    const replaceText = document.getElementById('replaceInput').value;
+    
+    if (!findText) {
+        alert('Please enter text to find.');
+        return;
+    }
+    
+    if (findMatches.length === 0) {
+        updateFindMatches();
+        if (findMatches.length === 0) {
+            alert('No matches found.');
+            return;
+        }
+    }
+    
+    const text = editor.value;
+    const regex = new RegExp(escapeRegex(findText), 'g');
+    const newText = text.replace(regex, replaceText);
+    editor.value = newText;
+    
+    // Trigger input event
+    editor.dispatchEvent(new Event('input'));
+    
+    // Animate all replacements in visualization
+    animateReplaceAllInVisualization(findText, replaceText);
+    
+    // Clear find matches
+    findMatches = [];
+    currentFindIndex = -1;
+    document.getElementById('findReplaceInfo').textContent = `Replaced ${findMatches.length} occurrences`;
+}
+
+function animateReplaceInVisualization(oldText, newText) {
+    const nodes = document.querySelectorAll('.node, .tree-node');
+    nodes.forEach((node, index) => {
+        const nodeText = node.textContent.trim();
+        if (nodeText.toLowerCase() === oldText.toLowerCase()) {
+            // Animate removal
+            node.style.animation = 'nodeRemove 0.6s ease forwards';
+            setTimeout(() => {
+                node.textContent = newText;
+                node.style.animation = 'nodeAppear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                setTimeout(() => {
+                    node.style.animation = '';
+                }, 600);
+            }, 600);
+        }
+    });
+}
+
+function animateReplaceAllInVisualization(oldText, newText) {
+    const nodes = document.querySelectorAll('.node, .tree-node');
+    let delay = 0;
+    
+    nodes.forEach((node) => {
+        const nodeText = node.textContent.trim();
+        if (nodeText.toLowerCase() === oldText.toLowerCase()) {
+            setTimeout(() => {
+                node.style.animation = 'nodeRemove 0.6s ease forwards';
+                setTimeout(() => {
+                    node.textContent = newText;
+                    node.style.animation = 'nodeAppear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                    setTimeout(() => {
+                        node.style.animation = '';
+                    }, 600);
+                }, 600);
+            }, delay);
+            delay += 100; // Stagger animations
+        }
+    });
+}
+
 // Clear Editor
 function clearEditor() {
     if (editor.value && !confirm('Are you sure you want to clear everything?')) {
@@ -251,6 +504,8 @@ function clearEditor() {
     undoStack = [''];
     redoStack = [];
     dataStructure = [];
+    findMatches = [];
+    currentFindIndex = -1;
     document.getElementById('charCount').textContent = '0';
     document.getElementById('wordCount').textContent = '0';
     updateUndoRedoButtons();
@@ -260,3 +515,18 @@ function clearEditor() {
 // Initialize
 updateDSInfo();
 visualize();
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Ctrl+F or Cmd+F for find
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        if (!findReplaceActive) {
+            toggleFindReplace();
+        }
+    }
+    // Escape to close find/replace
+    if (e.key === 'Escape' && findReplaceActive) {
+        toggleFindReplace();
+    }
+});

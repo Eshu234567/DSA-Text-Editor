@@ -46,6 +46,32 @@
                 <div class="editor-header">
                     <span><i class="fas fa-file-alt"></i> Active Document</span>
                     <div class="editor-controls">
+                        <div class="find-replace-container">
+                            <button id="findReplaceBtn" onclick="toggleFindReplace()" title="Find & Replace">
+                                <i class="fas fa-search-plus"></i> Find & Replace
+                            </button>
+                            <div id="findReplacePanel" class="find-replace-panel">
+                                <div class="find-replace-row">
+                                    <input type="text" id="findInput" placeholder="Find..." onkeyup="handleFindKeyup(event)">
+                                    <button onclick="findNext()" title="Find Next (Enter)">
+                                        <i class="fas fa-arrow-down"></i>
+                                    </button>
+                                    <button onclick="findPrevious()" title="Find Previous (Shift+Enter)">
+                                        <i class="fas fa-arrow-up"></i>
+                                    </button>
+                                </div>
+                                <div class="find-replace-row">
+                                    <input type="text" id="replaceInput" placeholder="Replace with...">
+                                    <button onclick="replaceCurrent()" title="Replace Current">
+                                        <i class="fas fa-exchange-alt"></i> Replace
+                                    </button>
+                                    <button onclick="replaceAll()" title="Replace All">
+                                        <i class="fas fa-sync"></i> Replace All
+                                    </button>
+                                </div>
+                                <div class="find-replace-info" id="findReplaceInfo"></div>
+                            </div>
+                        </div>
                         <button id="undoBtn" onclick="undo()" disabled title="Undo">
                             <i class="fas fa-undo"></i>
                         </button>
